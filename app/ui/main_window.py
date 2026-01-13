@@ -73,6 +73,9 @@ class MainWindow(QMainWindow):
         
         
         self.table.setStyleSheet(table_styles)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SingleSelection)
         
         layout.addWidget(self.table)
 
