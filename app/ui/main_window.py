@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QMainWindow,
     QWidget,
     QVBoxLayout,
@@ -16,6 +17,11 @@ from PySide6.QtCore import QThread, Qt
 from app.utils.size_format import format_bytes_grouped, format_size
 from app.worker import ScanWorker
 from app.models import ScanResult
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import QUrl
+from PySide6.QtWidgets import QStyle
+
+
 
 
 class MainWindow(QMainWindow):
@@ -36,10 +42,9 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget(self)
         self.setCentralWidget(central)
-
         layout = QVBoxLayout(central)
-
         self.path_label = QLabel(str(self.root_path))
+        
         layout.addWidget(self.path_label)
 
         self.progress_bar = QProgressBar()
@@ -47,9 +52,20 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
-        self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Folder", "Size", "Files"])
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["", "Folder", "Size", "Files"])
         self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setColumnWidth(0, 32)
+
+
+        
+        
+        
+        
+        self.table.cellClicked.connect(self._on_cell_clicked)
+        
+        # Отключаем редактирование
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         layout.addWidget(self.table)
 
     def _start_scan(self) -> None:
@@ -86,6 +102,8 @@ class MainWindow(QMainWindow):
     def _populate_table(self, results: List[ScanResult]) -> None:
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
+        
+        folder_icon = self.style().standardIcon(QStyle.SP_DirIcon)
 
         for result in results:
             row = self.table.rowCount()
@@ -93,13 +111,43 @@ class MainWindow(QMainWindow):
 
             self.table.setItem(row, 0, QTableWidgetItem(result.path.name))
             
+            icon_item = QTableWidgetItem()
+            icon_item.setIcon(folder_icon)
+            icon_item.setData(Qt.UserRole, str(result.path))
+            icon_item.setFlags(Qt.ItemIsEnabled)
+
+            self.table.setItem(row, 0, icon_item)
+            
+            folder_item = QTableWidgetItem(result.path.name)
+            folder_item.setToolTip(str(result.path))
+
+            self.table.setItem(row, 1, folder_item)
+                        
             
             size_item = QTableWidgetItem(format_size(result.size_bytes))
             size_item.setToolTip(f"{format_bytes_grouped(result.size_bytes)} bytes")
             size_item.setData(Qt.UserRole, result.size_bytes)
             
-            self.table.setItem(row, 1, size_item)
+            self.table.setItem(row, 2, size_item)
             
             
-            self.table.setItem(row, 2, QTableWidgetItem(str(result.file_count)))
+            self.table.setItem(row, 3, QTableWidgetItem(str(result.file_count)))
         self.table.setSortingEnabled(True)
+        
+    
+    def _on_cell_clicked(self, row: int, column: int) -> None:
+        # если клик не по первой колонке
+        if column != 0:
+            return
+
+        item = self.table.item(row, 0)
+        if not item:
+            return
+
+        path = item.data(Qt.UserRole)
+        if not path:
+            return
+
+        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        
+
