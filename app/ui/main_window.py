@@ -1,6 +1,7 @@
 # app/ui/main_window.py
 from pathlib import Path
 from typing import List
+from app.ui.styles import table_styles
 
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -69,6 +70,10 @@ class MainWindow(QMainWindow):
         
         # Отключаем редактирование
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        
+        
+        self.table.setStyleSheet(table_styles)
+        
         layout.addWidget(self.table)
 
     def _start_scan(self) -> None:
