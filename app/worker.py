@@ -4,6 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot
 
 from app.cache import ScanCache
+from app.core.logger import logger
 from app.scan_service import ScanService
 
 CACHE_PATH = Path.cwd() / ".folder_size_cache.sqlite"
@@ -34,4 +35,5 @@ class ScanWorker(QObject):
             self.finished.emit(results)
 
         except Exception as e:
+            logger.error(f"Worker crashed: {e}")
             self.error.emit(str(e))

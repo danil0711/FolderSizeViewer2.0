@@ -18,8 +18,15 @@ class ScanService:
         is_cancelled: Callable[[], bool],
     ) -> List[ScanResult]:
 
-        subfolders = [p for p in root.iterdir() if p.is_dir()]
-        total = len(subfolders)
+
+        try:
+            
+            subfolders = [p for p in root.iterdir() if p.is_dir()]
+            total = len(subfolders)
+        
+        except OSError as e:
+            # Логгирование сделает worker
+            raise RuntimeError(f"Cannot access root directory: {root}") from e
 
         if total == 0:
             on_progress(100)

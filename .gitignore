@@ -1,5 +1,6 @@
-*.db
 /venv
 
-
+*.db
 *.pyc
+*.sqlite
+*.log
