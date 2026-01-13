@@ -1,23 +1,17 @@
 # app/worker.py
 from pathlib import Path
-from typing import List
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from app.scanner import scan_folder
-from app.models import ScanResult
+from app.cache import ScanCache
+from app.scan_service import ScanService
+
+CACHE_PATH = Path.cwd() / ".folder_size_cache.sqlite"
 
 
 class ScanWorker(QObject):
-    """
-    Worker, который:
-    - сканирует все подпапки выбранной директории
-    - сообщает прогресс в процентах
-    - возвращает список ScanResult
-    """
-
-    progress = Signal(int)                  # 0..100
-    finished = Signal(list)                 # list[ScanResult]
+    progress = Signal(int)
+    finished = Signal(list)
     error = Signal(str)
 
     def __init__(self, root_path: Path) -> None:
@@ -28,36 +22,16 @@ class ScanWorker(QObject):
     @Slot()
     def run(self) -> None:
         try:
-            subfolders = self._get_subfolders(self.root_path)
-            total = len(subfolders)
+            cache = ScanCache(CACHE_PATH)
+            service = ScanService(cache)
 
-            results: List[ScanResult] = []
-
-            if total == 0:
-                self.progress.emit(100)
-                self.finished.emit(results)
-                return
-
-            for index, folder in enumerate(subfolders, start=1):
-                if self._is_cancelled:
-                    return
-
-                result = scan_folder(folder)
-                results.append(result)
-
-                percent = int(index / total * 100)
-                self.progress.emit(percent)
+            results = service.scan(
+                root=self.root_path,
+                on_progress=self.progress.emit,
+                is_cancelled=lambda: self._is_cancelled,
+            )
 
             self.finished.emit(results)
 
         except Exception as e:
             self.error.emit(str(e))
-
-    def cancel(self) -> None:
-        self._is_cancelled = True
-
-    def _get_subfolders(self, root: Path) -> List[Path]:
-        try:
-            return [p for p in root.iterdir() if p.is_dir()]
-        except Exception:
-            return []
