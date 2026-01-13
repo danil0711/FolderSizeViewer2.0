@@ -11,8 +11,9 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QLabel,
 )
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, Qt
 
+from app.utils.size_format import format_bytes_grouped, format_size
 from app.worker import ScanWorker
 from app.models import ScanResult
 
@@ -47,7 +48,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.progress_bar)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Folder", "Size (bytes)", "Files"])
+        self.table.setHorizontalHeaderLabels(["Folder", "Size", "Files"])
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
 
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
         self.path_label.setText(f"Error: {message}")
 
     def _populate_table(self, results: List[ScanResult]) -> None:
+        self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
 
         for result in results:
@@ -90,5 +92,14 @@ class MainWindow(QMainWindow):
             self.table.insertRow(row)
 
             self.table.setItem(row, 0, QTableWidgetItem(result.path.name))
-            self.table.setItem(row, 1, QTableWidgetItem(str(result.size_bytes)))
+            
+            
+            size_item = QTableWidgetItem(format_size(result.size_bytes))
+            size_item.setToolTip(f"{format_bytes_grouped(result.size_bytes)} bytes")
+            size_item.setData(Qt.UserRole, result.size_bytes)
+            
+            self.table.setItem(row, 1, size_item)
+            
+            
             self.table.setItem(row, 2, QTableWidgetItem(str(result.file_count)))
+        self.table.setSortingEnabled(True)
