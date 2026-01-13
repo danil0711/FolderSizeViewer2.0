@@ -56,7 +56,10 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels(["", "Folder", "Size", "Files"])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setColumnWidth(0, 32)
-
+        
+        self.table.setMouseTracking(True)
+        self.table.viewport().setMouseTracking(True)
+        self.table.cellEntered.connect(self._on_cell_hovered)
 
         
         
@@ -150,4 +153,9 @@ class MainWindow(QMainWindow):
 
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
         
+    def _on_cell_hovered(self, row: int, column: int) -> None:
+        if column == 0:
+            self.table.viewport().setCursor(Qt.PointingHandCursor)
+        else:
+            self.table.viewport().setCursor(Qt.ArrowCursor)
 
