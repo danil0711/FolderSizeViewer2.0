@@ -16,6 +16,7 @@ class ScanService:
         root: Path,
         on_progress: Callable[[int], None],
         is_cancelled: Callable[[], bool],
+        force_rescan: bool = False
     ) -> List[ScanResult]:
 
 
@@ -31,19 +32,23 @@ class ScanService:
         if total == 0:
             on_progress(100)
             return []
-
-        cached = self.cache.get_many(subfolders)
+        
+        if force_rescan:
+            cached = {}
+        else:
+            cached = self.cache.get_many(subfolders)
 
         results: list[ScanResult] = []
         scanned: list[ScanResult] = []
 
         done = 0
 
-        # 1. сразу добавляем кеш
-        for path, result in cached.items():
-            results.append(result)
-            done += 1
-            on_progress(int(done / total * 100))
+        # 1. Если есть кеш
+        if cached:
+            for path, result in cached.items():
+                results.append(result)
+                done += 1
+                on_progress(int(done / total * 100))
 
         # 2. сканируем остальное
         for folder in subfolders:
