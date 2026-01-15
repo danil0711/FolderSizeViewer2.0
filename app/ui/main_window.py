@@ -1,6 +1,7 @@
 import time
 from typing import List
 from pathlib import Path
+from app.ui.custom_widgets import FilesTableItem, SizeTableItem
 from app.ui.styles import table_styles
 from PySide6.QtWidgets import QPushButton
 
@@ -173,12 +174,19 @@ class MainWindow(QMainWindow):
             self.table.setItem(row, 1, folder_item)
                         
             
-            size_item = QTableWidgetItem(format_size(result.size_bytes))
-            size_item.setToolTip(f"{format_bytes_grouped(result.size_bytes)} bytes")
+            size_item = SizeTableItem()
+            size_item.setText(format_size(result.size_bytes))
             size_item.setData(Qt.UserRole, result.size_bytes)
-            
+            size_item.setToolTip(f"{format_bytes_grouped(result.size_bytes)} bytes")
             self.table.setItem(row, 2, size_item)
-            self.table.setItem(row, 3, QTableWidgetItem(str(result.file_count)))
+            
+            
+            # self.table.setItem(row, 3, QTableWidgetItem(str(result.file_count)))
+            
+            files_item = FilesTableItem(str(result.file_count))
+            files_item.setData(Qt.UserRole, result.file_count)
+            self.table.setItem(row, 3, files_item)
+            
             
         self.table.setSortingEnabled(True)
         
