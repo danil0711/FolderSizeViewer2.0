@@ -2,6 +2,8 @@
 from pathlib import Path
 from typing import List
 from app.ui.styles import table_styles
+from PySide6.QtWidgets import QPushButton
+
 
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -52,6 +54,12 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
+        
+        self.rescan_button = QPushButton("Пересканировать")
+        self.rescan_button.clicked.connect(self._on_rescan)
+        
+        layout.addWidget(self.rescan_button)
+
 
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["", "Folder", "Size", "Files"])
@@ -63,10 +71,7 @@ class MainWindow(QMainWindow):
         self.table.cellEntered.connect(self._on_cell_hovered)
 
         
-        
-        
-        
-        self.table.cellClicked.connect(self._on_cell_clicked)
+        self.table.cellClicked.connect(self._on_folder_cell_clicked)
         
         # Отключаем редактирование
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -79,9 +84,13 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.table)
 
-    def _start_scan(self) -> None:
+    def _start_scan(self, force_rescan: bool = False) -> None:
+        
+        self.rescan_button.setEnabled(False)
+        self.rescan_button.setText("Сканирование...")
+        
         self._thread = QThread(self)
-        self._worker = ScanWorker(self.root_path)
+        self._worker = ScanWorker(self.root_path, force_rescan=force_rescan)
 
         self._worker.moveToThread(self._thread)
 
@@ -94,7 +103,9 @@ class MainWindow(QMainWindow):
         # корректное завершение
         self._worker.finished.connect(self._thread.quit)
         self._worker.finished.connect(self._worker.deleteLater)
-        self._thread.finished.connect(self._thread.deleteLater)
+        
+        
+        # self._thread.finished.connect(self._thread.deleteLater)
 
         self._thread.start()
 
@@ -106,9 +117,15 @@ class MainWindow(QMainWindow):
     def _on_finished(self, results: List[ScanResult]) -> None:
         self.progress_bar.setValue(100)
         self._populate_table(results)
+        
+        self.rescan_button.setEnabled(True)
+        self.rescan_button.setText("Пересканировать")
 
     def _on_error(self, message: str) -> None:
         self.path_label.setText(f"Error: {message}")
+        
+        self.rescan_button.setEnabled(True)
+        self.rescan_button.setText("Пересканировать")
 
     def _populate_table(self, results: List[ScanResult]) -> None:
         self.table.setSortingEnabled(False)
@@ -140,13 +157,31 @@ class MainWindow(QMainWindow):
             size_item.setData(Qt.UserRole, result.size_bytes)
             
             self.table.setItem(row, 2, size_item)
-            
-            
             self.table.setItem(row, 3, QTableWidgetItem(str(result.file_count)))
+            
         self.table.setSortingEnabled(True)
         
+        
+    def _on_rescan(self) -> None:
+        self._stop_worker()
+        self.table.setRowCount(0)
+        self.progress_bar.setValue(0)
+        self._start_scan(force_rescan=True)
+        
+    def _stop_worker(self) -> None:
+        if self._worker:
+            self._worker.cancel()
+
+        if self._thread:
+            if self._thread.isRunning():
+                self._thread.quit()
+                self._thread.wait()
+
+        self._worker = None
+        self._thread = None
+            
     
-    def _on_cell_clicked(self, row: int, column: int) -> None:
+    def _on_folder_cell_clicked(self, row: int, column: int) -> None:
         # если клик не по первой колонке
         if column != 0:
             return

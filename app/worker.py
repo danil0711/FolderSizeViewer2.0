@@ -15,10 +15,11 @@ class ScanWorker(QObject):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, root_path: Path) -> None:
+    def __init__(self, root_path: Path, force_rescan: bool = False) -> None:
         super().__init__()
         self.root_path = root_path
         self._is_cancelled = False
+        self.force_rescan = force_rescan
 
     @Slot()
     def run(self) -> None:
@@ -30,6 +31,7 @@ class ScanWorker(QObject):
                 root=self.root_path,
                 on_progress=self.progress.emit,
                 is_cancelled=lambda: self._is_cancelled,
+                force_rescan=self.force_rescan
             )
 
             self.finished.emit(results)
@@ -37,3 +39,7 @@ class ScanWorker(QObject):
         except Exception as e:
             logger.error(f"Worker crashed: {e}")
             self.error.emit(str(e))
+            
+    def cancel(self):
+        self._is_cancelled = True
+        None
