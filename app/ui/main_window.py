@@ -1,8 +1,9 @@
-# app/ui/main_window.py
-from pathlib import Path
+import time
 from typing import List
+from pathlib import Path
 from app.ui.styles import table_styles
 from PySide6.QtWidgets import QPushButton
+
 
 
 from PySide6.QtWidgets import (
@@ -15,7 +16,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QLabel,
 )
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import QThread, QTimer, Qt
 
 from app.utils.size_format import format_bytes_grouped, format_size
 from app.worker import ScanWorker
@@ -30,6 +31,7 @@ from PySide6.QtWidgets import QStyle
 class MainWindow(QMainWindow):
     def __init__(self, root_path: Path) -> None:
         super().__init__()
+        
 
         self.setWindowTitle("Folder Size Viewer")
         self.resize(600, 400)
@@ -38,17 +40,24 @@ class MainWindow(QMainWindow):
 
         self._thread: QThread | None = None
         self._worker: ScanWorker | None = None
-
+        
+        self._scan_started_at: float | None = None
+        
         self._build_ui()
         self._start_scan()
+        
+        
 
     def _build_ui(self) -> None:
         central = QWidget(self)
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        self.path_label = QLabel(str(self.root_path))
         
+        self.path_label = QLabel(str(self.root_path))
         layout.addWidget(self.path_label)
+        
+        self.info_label = QLabel('')
+        layout.addWidget(self.info_label)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
@@ -83,11 +92,16 @@ class MainWindow(QMainWindow):
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         
         layout.addWidget(self.table)
+        
+        
 
     def _start_scan(self, force_rescan: bool = False) -> None:
+        self._scan_started_at = time.perf_counter()
+        
+        self.info_label.setText("")
         
         self.rescan_button.setEnabled(False)
-        self.rescan_button.setText("Сканирование...")
+        self.rescan_button.setText("Сканирование…")
         
         self._thread = QThread(self)
         self._worker = ScanWorker(self.root_path, force_rescan=force_rescan)
@@ -118,14 +132,22 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(100)
         self._populate_table(results)
         
+        
         self.rescan_button.setEnabled(True)
         self.rescan_button.setText("Пересканировать")
+        
+        self._handle_show_scan_time()
+        
+        
+        
 
     def _on_error(self, message: str) -> None:
         self.path_label.setText(f"Error: {message}")
         
         self.rescan_button.setEnabled(True)
         self.rescan_button.setText("Пересканировать")
+        
+        self._scan_started_at = None
 
     def _populate_table(self, results: List[ScanResult]) -> None:
         self.table.setSortingEnabled(False)
@@ -137,7 +159,6 @@ class MainWindow(QMainWindow):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            self.table.setItem(row, 0, QTableWidgetItem(result.path.name))
             
             icon_item = QTableWidgetItem()
             icon_item.setIcon(folder_icon)
@@ -201,4 +222,10 @@ class MainWindow(QMainWindow):
             self.table.viewport().setCursor(Qt.PointingHandCursor)
         else:
             self.table.viewport().setCursor(Qt.ArrowCursor)
+            
+    def _handle_show_scan_time(self) -> None:
+        if self._scan_started_at is not None:
+            elapsed = time.perf_counter() - self._scan_started_at
+            self.info_label.setText(f"Сканирование завершено за {elapsed:.4f} секунд")
+            self._scan_started_at = None
 
